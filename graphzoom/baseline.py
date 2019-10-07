@@ -8,7 +8,6 @@ import time
 
 from embed_methods.deepwalk.deepwalk import *
 from embed_methods.node2vec.node2vec import *
-from embed_methods.netmf.netmf import *
 from embed_methods.graphsage.graphsage import *
 from scoring import lr
 
@@ -59,8 +58,6 @@ def main():
             embeddings = deepwalk(G)
         elif embed_method == "node2vec":
             embeddings = node2vec(G)
-        elif embed_method == "netmf":
-            embeddings = netmf(G)
         embed_end = time.process_time()
     total_embed_time = embed_end - embed_start
 

@@ -1,7 +1,7 @@
 import numpy as np
 import networkx as nx
 import os
-from scipy.sparse import csr_matrix, triu, tril, diags
+from scipy.sparse import csr_matrix, triu, tril, diags, identity
 from scipy.io import mmwrite, mmread
 from itertools import permutations
 from numpy import linalg as LA
@@ -101,10 +101,11 @@ def graph_fusion(laplacian, feature, num_neighs, mcr_dir, fusion_input_path, sea
 def smooth_filter(laplacian_matrix, lda):
     dim = laplacian_matrix.shape[0]
     degree_matrix_vec = laplacian_matrix.diagonal()
-    self_loop_vec = degree_matrix_vec * lda
+    #self_loop_vec = degree_matrix_vec * lda
     degree_matrix = diags(degree_matrix_vec, 0)
-    self_loop = diags(self_loop_vec, 0)
-    adj_matrix = degree_matrix - laplacian_matrix + self_loop
+    #self_loop = diags(self_loop_vec, 0)
+    adj_matrix = degree_matrix - laplacian_matrix + lda * identity(dim)
+    #adj_matrix = degree_matrix - laplacian_matrix + self_loop
     degree_vec = adj_matrix.sum(axis=1)
     with np.errstate(divide='ignore'):
         d_inv_sqrt = np.squeeze(np.asarray(np.power(degree_vec, -0.5)))
@@ -235,6 +236,7 @@ def main():
     lr(eval_dataset, save_dir, dataset)
 
 ######Report timing information######
+    print("%%%%%% Single CPU time %%%%%%")
     if args.fusion:
         total_time = fusion_time + reduce_time + embed_time + refine_time
         time_info = [fusion_time, reduce_time, embed_time, refine_time, total_time]
@@ -242,7 +244,6 @@ def main():
     else:
         total_time = reduce_time + embed_time + refine_time
         time_info = [reduce_time, embed_time, refine_time, total_time]
-    print("%%%%%% Single CPU time %%%%%%")
     print("Graph Reduction  Time: {}".format(reduce_time))
     print("Graph Embedding  Time: {}".format(embed_time))
     print("Graph Refinement Time: {}".format(refine_time))
