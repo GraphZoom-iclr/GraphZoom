@@ -24,6 +24,7 @@ def lr(dataset_dir, data_dir, dataset):
     
     train_ids = [n for n in G.nodes() if not G.node[n]['val'] and not G.node[n]['test']]
     test_ids = [n for n in G.nodes() if G.node[n]['test']]
+    test_ids = test_ids[:1000]
     train_labels = [labels[str(i)] for i in train_ids]
     test_labels = [labels[str(i)] for i in test_ids]
     
