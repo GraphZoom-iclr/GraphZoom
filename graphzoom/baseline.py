@@ -9,6 +9,7 @@ import time
 from embed_methods.deepwalk.deepwalk import *
 from embed_methods.node2vec.node2vec import *
 from embed_methods.graphsage.graphsage import *
+from embed_methods.dgi.execute import *
 from scoring import lr
 
 
@@ -16,7 +17,7 @@ def main():
     parser = ArgumentParser(description="Original")
     parser.add_argument("-d", "--dataset", type=str, default="cora", help="input dataset")
     parser.add_argument("-e", "--embed_path", type=str, default="embed_results/original_embeddings.npy", help="path of embedding result")
-    parser.add_argument("-m", "--embed_method", type=str, default="deepwalk", help="specific embedding method")
+    parser.add_argument("-m", "--embed_method", type=str, default="deeepwalk", help="specific embedding method")
     parser.add_argument("-f", "--fusion", default=False, action="store_true", help="whether use graph fusion")
     
     parser.add_argument("-g", "--sage_model", type=str, default="mean", help="aggregation function in graphsage")
@@ -37,6 +38,14 @@ def main():
         feature = np.load("dataset/{}/{}-feats.npy".format(dataset, dataset))
         embed_start = time.process_time()
         embeddings = graphsage(G, feature, args.sage_model, args.sage_weighted, 10000)
+        embed_end = time.process_time()
+
+    elif embed_method == "dgi":
+        G_data = json.load(open("dataset/{}/{}-G.json".format(dataset, dataset)))
+        G = json_graph.node_link_graph(G_data)
+        feature = np.load("dataset/{}/{}-feats.npy".format(dataset, dataset))
+        embed_start = time.process_time()
+        embeddings = dgi(G, feature)
         embed_end = time.process_time()
 
     else:

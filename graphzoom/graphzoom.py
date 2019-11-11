@@ -114,12 +114,21 @@ def smooth_filter(laplacian_matrix, lda):
     norm_adj = degree @ adj_matrix @ degree
     return norm_adj
     
-def refinement(levels, projections, coarse_laplacian, embeddings, lda, power):
+def refinement(levels, projections, coarse_laplacian, embeddings, lda, power, k, feature):
     for i in reversed(range(levels)):
-        embeddings = (projections[i].transpose()) @ embeddings
-        filter_ = smooth_filter(coarse_laplacian[i], lda)
-        if power or i == 0:
-            embeddings = filter_ @ (filter_ @ embeddings)
+        if i != 0:
+            embeddings = (projections[i].transpose()) @ embeddings
+            filter_ = smooth_filter(coarse_laplacian[i], lda)
+            if power:
+                for _ in range(k):
+                    embeddings = filter_ @ embeddings
+        else:
+            embeddings = normalize(embeddings, norm='l1', axis=1)
+            embeddings = np.concatenate((feature, embeddings), axis=1)
+            embeddings = (projections[0].transpose()) @ embeddings
+            filter_ = smooth_filter(coarse_laplacian[0], lda)
+            for _ in range(k):
+                embeddings = filter_ @ embeddings
     return embeddings
 
 def main():
@@ -127,12 +136,13 @@ def main():
     parser.add_argument("-d", "--dataset", type=str, default="cora", help="input dataset")
     parser.add_argument("-c", "--mcr_dir", type=str, default="/opt/matlab/R2018A/", help="directory of matlab compiler runtime")
     parser.add_argument("-s", "--search_ratio", type=int, default=12, help="control the search space in graph fusion process")
+    parser.add_argument("-k", "--kpower", type=int, default=2, help="control the graph filter power")
     parser.add_argument("-r", "--reduce_ratio", type=int, default=2, help="control graph coarsening levels")
     parser.add_argument("-n", "--num_neighs", type=int, default=2, help="control k-nearest neighbors in graph fusion process")
     parser.add_argument("-l", "--lda", type=float, default=0.1, help="control self loop in adjacency matrix")
     parser.add_argument("-e", "--embed_path", type=str, default="embed_results/embeddings.npy", help="path of embedding result")
-    parser.add_argument("-m", "--embed_method", type=str, default="deepwalk", help="[deepwalk, node2vec, graphsage]")
-    parser.add_argument("-f", "--fusion", default=True, action="store_false", help="whether use graph fusion")
+    parser.add_argument("-m", "--embed_method", type=str, default="dgi", help="[deepwalk, node2vec, graphsage, dgi]")
+    parser.add_argument("-f", "--fusion", default=False, action="store_true", help="whether use graph fusion")
     parser.add_argument("-p", "--power", default=False, action="store_true", help="Strong power of graph filter, set True to enhance filter power")
 
     parser.add_argument("-g", "--sage_model", type=str, default="mean", help="aggregation function in graphsage")
@@ -171,7 +181,7 @@ def main():
     else:
         laplacian = json2mtx(dataset)
     
-    if args.fusion or args.embed_method == "graphsage":    ##whether feature is needed
+    if args.fusion or args.embed_method == "graphsage" or args.embed_method == "dgi":    ##whether feature is needed
         feature = np.load(feature_path)
 
 
@@ -214,6 +224,14 @@ def main():
         embeddings = graphsage(G, feats, args.sage_model, args.sage_weighted, int(10000/args.reduce_ratio))
         embed_end = time.process_time()
         
+    elif args.embed_method == "dgi":
+        from embed_methods.dgi.execute import dgi
+        mapping = normalize(mtx2matrix(mapping_path), norm='l1', axis=1)
+        feats = mapping @ feature
+        embed_start = time.process_time()
+        embeddings = dgi(G, feats)
+        embed_end = time.process_time()
+
     embed_time = embed_end - embed_start
 
 ######Load Refinement Data######
@@ -222,8 +240,9 @@ def main():
 
 ######Refinement######
     print("%%%%%% Starting Graph Refinement %%%%%%")
+    feat = normalize(projections[0], norm='l1', axis=1) @ feature
     refine_start = time.process_time()
-    embeddings = refinement(levels, projections, coarse_laplacian, embeddings, lda, args.power)
+    embeddings = refinement(levels, projections, coarse_laplacian, embeddings, lda, args.power, args.kpower, feat)
     refine_end = time.process_time()
     refine_time = refine_end - refine_start
 

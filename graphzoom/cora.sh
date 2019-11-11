@@ -8,5 +8,5 @@ for i in `seq 1 5`    ## coarsening level
             (4)  echo 19;;
             (5)  echo 27;;
         esac)
-        python graphzoom.py -r ${ratio} -m deepwalk
+        python graphzoom.py -r ${ratio} -m dgi
 done
